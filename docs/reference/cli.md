@@ -189,7 +189,7 @@ Resolution, module loading and the several-flows-per-module rule are specified i
 ### Writing an agent (`-a`) {#writing-an-agent}
 
 ```text
-<role>=<cli>[@<provider>]/<model>[:<effort>]
+<role>=<cli>[@<provider>]/<model>[:<effort>[+<tier>]]
 ```
 
 | Part | Rule |
@@ -197,8 +197,9 @@ Resolution, module loading and the several-flows-per-module rule are specified i
 | `<role>` | A Python identifier: a field of the flow's agents declaration. Required on the command line. |
 | `<cli>` | Read from the front up to the first `/`, then split at the first `@`. A CLI name or alias below, or the name of an [ACP CLI](/reference/agents#a-cli-of-your-own). |
 | `@<provider>` | An [account](/reference/providers) of that CLI. `@` followed by nothing is refused. Absent: the CLI runs as this machine's own login (*as local*). |
-| `<model>` | Everything after the first `/`, less a trailing `:<effort>`. Passed to the CLI unchecked. May contain `/` and `:`. |
+| `<model>` | Everything after the first `/`, less a trailing `:<effort>[+<tier>]`. Passed to the CLI unchecked. May contain `/` and `:`. |
 | `<effort>` | After the last `:`, where what follows it is spelled as an effort: words of letters joined by `-`, `_` or a space (`high`, `extra-high`, `as configured`), or nothing. Otherwise -- `custom_provider:gateway/m`, `qwen3:8b` -- the `:` is the model's, and so is everything after it. Left off, or `auto`, or empty: no rung, stored as `""`. A model whose own name ends in `:<word>` is written with its effort after it: `qwen3:latest:auto`. Any other word must be on the CLI's ladder ([Agents](/reference/agents)); an ACP CLI takes any word. |
+| `<tier>` | After a `+` that follows the effort -- which may be `auto` or nothing -- the service tier the agent is served at: `fast` or `default` (`codex/gpt-5:high+fast`, `codex/gpt-5:auto+fast`). Written after a `:` only, so a `+` in a model with no `:` after it is the model's. Any other word is refused as the line is read. `fast` is served by `claude`, `codex` and `cursor-agent` -- Codex is asked for its `priority` tier -- and refused when the agent of any other CLI is built. Left off: no tier asked for, which leaves the CLI at its default. |
 
 | `<cli>` | Aliases | Ladder, hardest first | Installed by | Extra |
 | --- | --- | --- | --- | --- |
@@ -370,9 +371,9 @@ Stage 1–2 messages are preceded by the usage block.
 | --- | --- |
 | no `-f`, no task | `the following arguments are required: -f/--flow` / `…: task` |
 | unknown option | `unrecognized arguments: <args>` |
-| an `-a` item without `role=` | `-a '<item>': expected <role>=<harness>[@<provider>]/<model>[:<effort>]` |
+| an `-a` item without `role=` | `-a '<item>': expected <role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]` |
 | an `-a` role that is not an identifier | ``-a '<item>': '<role>' is not a place a flow could declare: what is written before `=` is a field of the tuple of agents the flow declares, so it is a Python identifier`` |
-| an `-a` with an unknown CLI, no `/` or no model | `-a '<item>': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]` |
+| an `-a` with an unknown CLI, no `/` or no model | `-a '<item>': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]` |
 | `@` with no account | `-a '<item>': expected an account after @, as in claude@deepseek/MODEL:EFFORT` |
 | a role twice in `-a` | `-a: the role '<role>' is given twice` |
 | an `-e` that does not match | `-e '<item>': expected <role>=<backend>[@<provider>]/<workdir>` |

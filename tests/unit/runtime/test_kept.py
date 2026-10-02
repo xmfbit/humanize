@@ -36,6 +36,8 @@ def test_an_agent_is_written_down_as_the_word_a_line_takes() -> None:
         Runs("codex/gpt-5.5:auto", "a@b"),
         Runs("mcode/custom_provider:gateway/mock/first-model:auto", "loopback"),
         Runs("opencode/ollama/qwen3:latest:high"),
+        Runs("codex/gpt-5.5:high+fast"),
+        Runs("codex/gpt-5.5:auto+fast", "work"),
     ],
 )
 def test_an_agent_written_down_comes_back_as_itself(runs: Runs) -> None:

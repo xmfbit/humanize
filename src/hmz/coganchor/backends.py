@@ -3011,7 +3011,7 @@ def _runnable(path: Path) -> bool:
     return path.is_file() and os.access(path, os.X_OK)
 
 
-def read(spec: str) -> tuple[str, Profile, str, str, str]:
+def read(spec: str) -> tuple[str, Profile, str, str, str, str]:
     """Reads one `-a` into the place it fills, the backend to drive, what at, and as whom.
 
     One agent, though `-a` takes a list of them: whoever holds the line splits it on the
@@ -3019,15 +3019,18 @@ def read(spec: str) -> tuple[str, Profile, str, str, str]:
     answered about the one it got wrong rather than about all three.
 
     Args:
-      spec: `[NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]`. NAME is the place the agent fills, which is
-        a field of the tuple of agents the flow declares; a line that leaves it off fills the
-        flow's places in the order it takes them. The CLI may name a provider after an `@`, as
-        `claude@deepseek/MODEL:EFFORT`, which is the account that agent's turns run as.
+      spec: `[NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]`. NAME is the place the agent fills,
+        which is a field of the tuple of agents the flow declares; a line that leaves it off
+        fills the flow's places in the order it takes them. The CLI may name a provider after
+        an `@`, as `claude@deepseek/MODEL:EFFORT`, which is the account that agent's turns run
+        as. TIER, after a `+`, is the service tier it is served at -- one of
+        :data:`hmz.coganchor.agents.config.SERVICE_TIERS` -- written after its effort, which
+        may be `auto`: `codex/gpt-5:high+fast`, `codex/gpt-5:auto+fast`.
 
     Returns:
       The place it fills -- "" where the line named none -- the backend, the model, the
-      effort, and the provider, which is "" for an agent that runs as whoever is at this
-      machine already runs its CLI.
+      effort, the provider, which is "" for an agent that runs as whoever is at this machine
+      already runs its CLI, and the service tier, which is "" where none was written.
 
     Raises:
       ValueError: If it is not that or names no backend there is. What it says is what a
@@ -3050,10 +3053,20 @@ def read(spec: str) -> tuple[str, Profile, str, str, str]:
     # are `provider/id` -- and colons -- MiniMax Code's are `custom_provider:name/id` --
     # while a CLI and an effort never do. So the effort is what follows the last `:` only
     # where that is spelled as one, and left off it is no rung at all.
-    from hmz.coganchor.spelling import parted
+    from hmz.coganchor.agents.config import SERVICE_TIERS
+    from hmz.coganchor.spelling import parted, tiered
 
     backend, _, said = spec.partition("/")
-    model, effort = parted(said)
+    model, written = parted(said)
+    effort, tier = tiered(written)
+    # A tier is checked here rather than where the agent is built, because a word nobody
+    # serves at is a line to correct, not an agent to start: whether this CLI can serve at a
+    # tier that is one is the driver's to say, when the agent is built before the run starts.
+    if tier and tier not in SERVICE_TIERS:
+        raise ValueError(
+            f"{tier!r} is not a service tier: expected "
+            f"{' or '.join('+' + one for one in SERVICE_TIERS)} after the effort"
+        )
     # The account, if one was named: a CLI is never spelled with an `@` in it, so the two are
     # told apart wherever the agent was written -- `-a`, a settings file, an interface. An
     # `@` with nothing after it is a line to correct rather than a line saying nothing: it
@@ -3065,11 +3078,18 @@ def read(spec: str) -> tuple[str, Profile, str, str, str]:
         )
     profile = named(backend.strip())
     if profile is None or not model.strip():
-        raise ValueError("expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]")
+        raise ValueError("expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]")
     # `auto` is the written form of no rung at all, and this is where it stops being written:
     # everything downstream reads the absence as "", which is what every driver already knows
     # to say nothing about. So is an effort left off, and one that is empty rather than
     # absent -- what a spec round-tripped through a settings file may come back as: the
     # layers that keep a run written down carry the agent as the string they were given.
     rung = effort.strip()
-    return name, profile, model.strip(), "" if rung == AUTO else rung, provider.strip()
+    return (
+        name,
+        profile,
+        model.strip(),
+        "" if rung == AUTO else rung,
+        provider.strip(),
+        tier,
+    )

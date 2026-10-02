@@ -154,6 +154,10 @@ def test_a_space_after_a_comma_still_separates_two_items() -> None:
         "coder=mcode@loopback/custom_provider:gateway/mock/first-model",
         "coder=mcode/custom_provider:gateway/mock/first-model:high",
         "coder=opencode/ollama/qwen3:latest:auto",
+        "coder=codex/gpt-5:high+fast",
+        "coder=codex@work/gpt-5:auto+fast",
+        "coder=codex/gpt-5:low+default",
+        "coder=opencode/ollama/qwen3:latest:auto+fast",
     ],
 )
 def test_an_agent_is_written_back_as_it_is_read(written: str) -> None:
@@ -491,3 +495,35 @@ def test_what_is_not_a_harness_is_refused_saying_why(written: str, says: str) ->
     assert issubclass(HarnessSpecError, SpecError)
     # In `-H`'s own words: a standalone machine has no role to spell.
     assert "<role>" not in str(refused.value)
+
+
+# ---------------------------------------------------------------------------- service tier
+
+
+@pytest.mark.parametrize(
+    ("written", "model", "effort", "tier"),
+    [
+        ("codex/gpt-5:high+fast", "gpt-5", "high", "fast"),
+        # No rung, at a tier: `auto` before the `+`, or nothing at all.
+        ("codex/gpt-5:auto+fast", "gpt-5", "", "fast"),
+        ("codex/gpt-5:+fast", "gpt-5", "", "fast"),
+        ("codex/gpt-5:high+default", "gpt-5", "high", "default"),
+        # A model's own colon is still the model's, with a tier after its effort.
+        ("opencode/ollama/qwen3:latest:auto+fast", "ollama/qwen3:latest", "", "fast"),
+        # Asked for nothing: no tier, which is not the same as asking for `default`.
+        ("codex/gpt-5:high", "gpt-5", "high", ""),
+        # A tier is written after a `:` only, so a `+` in a model is the model's own.
+        ("codex/gpt-5+fast", "gpt-5+fast", "", ""),
+    ],
+)
+def test_a_tier_is_what_follows_the_effort_after_a_plus(
+    written: str, model: str, effort: str, tier: str
+) -> None:
+    (spec,) = parse_agents([f"coder={written}"])
+    assert (spec.model, spec.effort, spec.tier) == (model, effort, tier)
+
+
+@pytest.mark.parametrize("written", ["codex/gpt-5:high+turbo", "codex/gpt-5:auto+Fast"])
+def test_a_tier_nobody_serves_at_is_refused_where_it_is_written(written: str) -> None:
+    with pytest.raises(AgentSpecError, match="is not a service tier"):
+        parse_agents([f"coder={written}"])

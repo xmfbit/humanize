@@ -1779,6 +1779,7 @@ def _made(runs: str) -> AgentBase | None:
                 model=spec.model,
                 effort=spec.effort,
                 provider=spec.provider,
+                **({"service_tier": spec.tier} if spec.tier else {}),
                 **identifying(made, spec.cli),
             )
         )

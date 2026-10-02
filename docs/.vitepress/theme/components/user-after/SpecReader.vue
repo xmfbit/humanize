@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // How `hmz exec` reads one `-a`, played in the browser: the role, the CLI, the account, the
-// model and the effort, or the refusal it would print instead.
+// model, the effort and the service tier, or the refusal it would print instead.
 //
 // A simulation, and it has to say what the code says. The reading is
 // `hmz.runtime.flowing.specs.parse_agents` over `hmz.coganchor.backends.read`, the ladders
-// are each profile's `efforts` in `hmz.coganchor.backends`, and every refusal below is the
+// are each profile's `efforts` in `hmz.coganchor.backends`, the tiers each driver's
+// `service_tiers` in `hmz.coganchor.agents`, and every refusal below is the
 // line `hmz exec` prints for it. It knows the twelve CLIs humanize ships and no CLI added at
 // the accounts page of /settings, and it cannot know which roles a flow declares.
 import { computed, ref } from 'vue'
@@ -14,22 +15,26 @@ interface Cli {
   title: string
   aliases: string[]
   efforts: string[]
+  // The driver's class, which is how a tier it cannot serve at is refused, and whether it
+  // serves `fast`: `service_tiers` is ('default', 'fast') for these and ('default',) otherwise.
+  driver: string
+  fast?: boolean
   swarms?: boolean
 }
 
 const CLIS: Cli[] = [
-  { name: 'claude', title: 'Claude Code', aliases: ['claude', 'claude-code'], efforts: ['ultracode', 'max', 'xhigh', 'high', 'medium', 'low'] },
-  { name: 'agy', title: 'Antigravity', aliases: ['agy', 'antigravity'], efforts: ['high', 'medium', 'low'] },
-  { name: 'codex', title: 'Codex', aliases: ['codex'], efforts: ['ultra', 'max', 'xhigh', 'high', 'medium', 'low'] },
-  { name: 'dsh', title: 'DeepSeek Harness', aliases: ['dsh', 'deepseek-harness'], efforts: ['max', 'high', 'low', 'off'] },
-  { name: 'grok', title: 'Grok Build', aliases: ['grok', 'grok-build', 'grokbuild'], efforts: ['xhigh', 'high', 'medium', 'low'] },
-  { name: 'kimi', title: 'Kimi Code', aliases: ['kimi', 'kimi-code'], efforts: ['max', 'high', 'medium', 'low'], swarms: true },
-  { name: 'pi', title: 'pi', aliases: ['pi'], efforts: ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'off'] },
-  { name: 'qwen', title: 'Qwen Code', aliases: ['qwen', 'qwen-code'], efforts: ['max', 'xhigh', 'high', 'medium', 'low', 'none'] },
-  { name: 'opencode', title: 'opencode', aliases: ['opencode'], efforts: ['xhigh', 'high', 'medium', 'low', 'minimal'] },
-  { name: 'mimo', title: 'mimocode', aliases: ['mimo', 'mimocode', 'mimo-code'], efforts: ['xhigh', 'high', 'medium', 'low', 'minimal'] },
-  { name: 'cursor-agent', title: 'Cursor Agent', aliases: ['cursor-agent', 'cursor-cli'], efforts: ['max', 'xhigh', 'extra-high', 'high', 'medium', 'low', 'minimal', 'none'] },
-  { name: 'mcode', title: 'MiniMax Code', aliases: ['mcode', 'minimax', 'minimax-code'], efforts: ['max', 'xhigh', 'high', 'medium', 'low'] },
+  { name: 'claude', title: 'Claude Code', aliases: ['claude', 'claude-code'], efforts: ['ultracode', 'max', 'xhigh', 'high', 'medium', 'low'], driver: 'ClaudeCodeAgent', fast: true },
+  { name: 'agy', title: 'Antigravity', aliases: ['agy', 'antigravity'], efforts: ['high', 'medium', 'low'], driver: 'AntigravityCLIAgent' },
+  { name: 'codex', title: 'Codex', aliases: ['codex'], efforts: ['ultra', 'max', 'xhigh', 'high', 'medium', 'low'], driver: 'CodexAgent', fast: true },
+  { name: 'dsh', title: 'DeepSeek Harness', aliases: ['dsh', 'deepseek-harness'], efforts: ['max', 'high', 'low', 'off'], driver: 'DshAgent' },
+  { name: 'grok', title: 'Grok Build', aliases: ['grok', 'grok-build', 'grokbuild'], efforts: ['xhigh', 'high', 'medium', 'low'], driver: 'GrokBuildAgent' },
+  { name: 'kimi', title: 'Kimi Code', aliases: ['kimi', 'kimi-code'], efforts: ['max', 'high', 'medium', 'low'], swarms: true , driver: 'KimiCodeCLIAgent' },
+  { name: 'pi', title: 'pi', aliases: ['pi'], efforts: ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'off'], driver: 'PiAgent' },
+  { name: 'qwen', title: 'Qwen Code', aliases: ['qwen', 'qwen-code'], efforts: ['max', 'xhigh', 'high', 'medium', 'low', 'none'], driver: 'QwenCodeAgent' },
+  { name: 'opencode', title: 'opencode', aliases: ['opencode'], efforts: ['xhigh', 'high', 'medium', 'low', 'minimal'], driver: 'OpencodeAgent' },
+  { name: 'mimo', title: 'mimocode', aliases: ['mimo', 'mimocode', 'mimo-code'], efforts: ['xhigh', 'high', 'medium', 'low', 'minimal'], driver: 'MimoCodeAgent' },
+  { name: 'cursor-agent', title: 'Cursor Agent', aliases: ['cursor-agent', 'cursor-cli'], efforts: ['max', 'xhigh', 'extra-high', 'high', 'medium', 'low', 'minimal', 'none'], driver: 'CursorAgent', fast: true },
+  { name: 'mcode', title: 'MiniMax Code', aliases: ['mcode', 'minimax', 'minimax-code'], efforts: ['max', 'xhigh', 'high', 'medium', 'low'], driver: 'MiniMaxCodeAgent' },
 ]
 
 const EXAMPLES = [
@@ -39,6 +44,8 @@ const EXAMPLES = [
   { label: 'slashes in the model', spec: 'agent=kimi/kimi-code/k3:swarmmax' },
   { label: 'a colon in the model', spec: 'agent=mcode/custom_provider:gateway/mock/first-model' },
   { label: 'no effort', spec: 'agent=claude/claude-opus-5:auto' },
+  { label: 'a fast tier', spec: 'agent=codex/gpt-5.6-sol:high+fast' },
+  { label: 'a tier the CLI lacks', spec: 'agent=opencode/opencode/big-pickle:auto+fast' },
   { label: 'no role', spec: 'claude/claude-opus-5:high' },
   { label: 'effort off the ladder', spec: 'agent=codex/gpt-5.6-sol:extreme' },
 ]
@@ -57,6 +64,7 @@ interface Agent {
   account: string
   model: string
   effort: string
+  tier: string
 }
 
 interface Reading {
@@ -88,7 +96,7 @@ function read(value: string): Reading {
     const role = at < 0 ? '' : one.slice(0, at).trim()
     const rest = at < 0 ? '' : one.slice(at + 1)
     if (at < 0 || !role) {
-      return refused(`-a '${one}': expected <role>=<harness>[@<provider>]/<model>[:<effort>]`)
+      return refused(`-a '${one}': expected <role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]`)
     }
     // Python's `str.isidentifier`, near enough: a letter or `_`, then letters, digits, `_`.
     if (!/^[\p{L}_][\p{L}\p{N}_]*$/u.test(role)) {
@@ -101,28 +109,40 @@ function read(value: string): Reading {
       return refused(`-a '${one}': expected one agent: a \`,\` separates several, each read on its own`)
     }
     // Read from both ends: the CLI up to the first slash, the effort after the last colon --
-    // where that is spelled as one. Otherwise the colon is the model's, as in
-    // `custom_provider:gateway/m`, and the agent is at no effort.
+    // where that is spelled as one, alone or with `+` and a tier after it. Otherwise the colon
+    // is the model's, as in `custom_provider:gateway/m`, and the agent is at no effort.
     const slash = rest.indexOf('/')
     const head = slash < 0 ? rest : rest.slice(0, slash)
     const tail = slash < 0 ? '' : rest.slice(slash + 1)
     const colon = tail.lastIndexOf(':')
     const after = colon < 0 ? '' : tail.slice(colon + 1).trim()
-    const parted = colon >= 0 && (!after || /^[A-Za-z]+(?:[-_ ][A-Za-z]+)*$/.test(after))
+    const plus = after.indexOf('+')
+    const rungSaid = (plus < 0 ? after : after.slice(0, plus)).trim()
+    const tierSaid = plus < 0 ? '' : after.slice(plus + 1).trim()
+    const spelled =
+      (!rungSaid || /^[A-Za-z]+(?:[-_ ][A-Za-z]+)*$/.test(rungSaid)) &&
+      (plus < 0 || /^[A-Za-z]+$/.test(tierSaid))
+    const parted = colon >= 0 && (!after || spelled)
     const model = (parted ? tail.slice(0, colon) : tail).trim()
-    const effort = parted ? after : ''
+    const effort = parted ? rungSaid : ''
+    const tier = parted ? tierSaid : ''
     const monkey = head.indexOf('@')
     const cliAs = (monkey < 0 ? head : head.slice(0, monkey)).trim()
     const account = monkey < 0 ? '' : head.slice(monkey + 1).trim()
     if (monkey >= 0 && !account) {
       return refused(`-a '${one}': expected an account after @, as in claude@deepseek/MODEL:EFFORT`)
     }
+    if (tier && tier !== 'default' && tier !== 'fast') {
+      return refused(
+        `-a '${one}': '${tier}' is not a service tier: expected +default or +fast after the effort`,
+      )
+    }
     const cli = named(cliAs)
-    if (!cli || !model) return refused(`-a '${one}': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]`)
+    if (!cli || !model) return refused(`-a '${one}': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]`)
     if (agents.some((other) => other.role === role)) {
       return refused(`-a: the role '${role}' is given twice`)
     }
-    agents.push({ role, cli, cliAs, account, model, effort: effort === 'auto' ? '' : effort })
+    agents.push({ role, cli, cliAs, account, model, effort: effort === 'auto' ? '' : effort, tier })
   }
   // Read, and then checked against each CLI's ladder as the run is set up: no usage line.
   for (const one of agents) {
@@ -131,6 +151,14 @@ function read(value: string): Reading {
       return refused(
         `${one.role}=${one.cli.name}${account}/${one.model}:${one.effort}: ${one.cli.name} cannot ` +
           `be asked to think at '${one.effort}'; expected one of ${one.cli.efforts.join(', ')}`,
+        false,
+      )
+    }
+    if (one.tier === 'fast' && !one.cli.fast) {
+      const account = one.account ? `@${one.account}` : ''
+      return refused(
+        `${one.role}=${one.cli.name}${account}/${one.model}:${one.effort || 'auto'}+fast: ` +
+          `${one.cli.driver} does not support service tier 'fast'; expected default`,
         false,
       )
     }
@@ -183,7 +211,7 @@ const reading = computed(() => read(said.value))
     <div v-else class="agents" aria-live="polite">
       <div v-for="one in reading.agents" :key="one.role" class="agent">
         <div class="spelled">
-          <span class="p role">{{ one.role }}</span><span class="sep">=</span><span class="p cli">{{ one.cliAs }}</span><template v-if="one.account"><span class="sep">@</span><span class="p account">{{ one.account }}</span></template><span class="sep">/</span><span class="p model">{{ one.model }}</span><span class="sep">:</span><span class="p effort">{{ one.effort || 'auto' }}</span>
+          <span class="p role">{{ one.role }}</span><span class="sep">=</span><span class="p cli">{{ one.cliAs }}</span><template v-if="one.account"><span class="sep">@</span><span class="p account">{{ one.account }}</span></template><span class="sep">/</span><span class="p model">{{ one.model }}</span><span class="sep">:</span><span class="p effort">{{ one.effort || 'auto' }}</span><template v-if="one.tier"><span class="sep">+</span><span class="p effort">{{ one.tier }}</span></template>
         </div>
         <dl>
           <div class="role">
@@ -210,6 +238,12 @@ const reading = computed(() => read(said.value))
               {{ one.cli.efforts.join(', ') }}<span v-if="one.cli.swarms">, each also as <code>swarm…</code></span>
             </dd>
             <dd v-else>none asked for — the CLI's own default</dd>
+          </div>
+          <div class="effort">
+            <dt>tier</dt>
+            <dd v-if="one.tier === 'fast'"><code>fast</code> — served faster, usually at a higher price</dd>
+            <dd v-else-if="one.tier"><code>{{ one.tier }}</code> — the CLI's default tier, asked for by name</dd>
+            <dd v-else>none asked for — the CLI's default tier</dd>
           </div>
         </dl>
       </div>

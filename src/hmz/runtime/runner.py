@@ -136,8 +136,9 @@ def read_line(argv: list[str]) -> Line:
         action="append",
         default=[],
         metavar="ROLE=SPEC[,...]",
-        help="what an agent role runs: ROLE=CLI[@PROVIDER]/MODEL[:EFFORT], several to one "
-        "option separated by commas, the option repeated as often as suits. CLI is one of "
+        help="what an agent role runs: ROLE=CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]], several to "
+        "one option separated by commas, the option repeated as often as suits. TIER is fast "
+        "or default, after an effort that may be auto: codex/gpt-5:high+fast. CLI is one of "
         f"{', '.join(sorted(one.name for one in backends.profiles()))}",
     )
     parser.add_argument(

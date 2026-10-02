@@ -1468,7 +1468,7 @@ file, and `Hmz().run(agents={role: spec}, envs={role: spec})`. Every refusal bel
 ### `-a`: agents {#a-agents}
 
 ```
-<role>=<cli>[@<provider>]/<model>[:<effort>]
+<role>=<cli>[@<provider>]/<model>[:<effort>[+<tier>]]
 ```
 
 | Part | Rule |
@@ -1481,9 +1481,9 @@ file, and `Hmz().run(agents={role: spec}, envs={role: spec})`. Every refusal bel
 
 | Input | Message |
 | --- | --- |
-| no `=`, or empty role | `-a '<item>': expected <role>=<harness>[@<provider>]/<model>[:<effort>]` |
+| no `=`, or empty role | `-a '<item>': expected <role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]` |
 | role not an identifier | ``-a '<item>': '<role>' is not a place a flow could declare: what is written before `=` is a field of the tuple of agents the flow declares, so it is a Python identifier`` |
-| unknown CLI, empty model, or no `/` | `-a '<item>': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]` |
+| unknown CLI, empty model, or no `/` | `-a '<item>': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]` |
 | `@` with nothing after | `-a '<item>': expected an account after @, as in claude@deepseek/MODEL:EFFORT` |
 | role twice | `-a: the role '<role>' is given twice` |
 | role not declared | `<flow> has no agent role '<role>'; available roles are '<a>', '<b>'` |

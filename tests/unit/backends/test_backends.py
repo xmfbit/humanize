@@ -74,16 +74,16 @@ def test_a_home_shared_with_every_program_keeps_its_own_directory_under_it(
 
 
 def test_an_agent_is_read_off_a_command_line() -> None:
-    place, profile, model, effort, provider = backends.read(
+    place, profile, model, effort, provider, _ = backends.read(
         "pi/openai-codex/gpt-5.5:high"
     )
     assert (profile.name, model, effort) == ("pi", "openai-codex/gpt-5.5", "high")
     assert place == ""  # filling whichever place the flow takes next
     assert provider == ""  # as whoever is at this machine already runs it
-    _, profile, model, effort, _ = backends.read("mimocode/xiaomi/mimo-v2.5:low")
+    _, profile, model, effort, _, _ = backends.read("mimocode/xiaomi/mimo-v2.5:low")
     assert (profile.name, model, effort) == ("mimo", "xiaomi/mimo-v2.5", "low")
     # Read from both ends, so a model holding slashes of its own keeps every one of them.
-    _, profile, model, effort, _ = backends.read(
+    _, profile, model, effort, _, _ = backends.read(
         "claude/azure/anthropic/claude-haiku-4-5:high"
     )
     assert (profile.name, model, effort) == (
@@ -95,7 +95,7 @@ def test_an_agent_is_read_off_a_command_line() -> None:
 
 def test_a_model_keeps_a_colon_of_its_own() -> None:
     """MiniMax Code names a model a provider of its config serves `custom_provider:NAME/ID`."""
-    _, profile, model, effort, provider = backends.read(
+    _, profile, model, effort, provider, _ = backends.read(
         "mcode@loopback/custom_provider:gateway/mock/first-model"
     )
     assert (profile.name, model, effort, provider) == (
@@ -104,21 +104,21 @@ def test_a_model_keeps_a_colon_of_its_own() -> None:
         "",
         "loopback",
     )
-    _, _, model, effort, _ = backends.read("mcode/custom_provider:gateway/m:high")
+    _, _, model, effort, _, _ = backends.read("mcode/custom_provider:gateway/m:high")
     assert (model, effort) == ("custom_provider:gateway/m", "high")
     # A model whose own name ends in a word after a `:` takes its effort written after it.
-    _, _, model, effort, _ = backends.read("opencode/ollama/qwen3:latest:auto")
+    _, _, model, effort, _, _ = backends.read("opencode/ollama/qwen3:latest:auto")
     assert (model, effort) == ("ollama/qwen3:latest", "")
 
 
 def test_an_effort_left_off_is_no_rung_at_all() -> None:
-    _, profile, model, effort, _ = backends.read("claude/claude-haiku-4-5")
+    _, profile, model, effort, _, _ = backends.read("claude/claude-haiku-4-5")
     assert (profile.name, model, effort) == ("claude", "claude-haiku-4-5", "")
 
 
 def test_an_agent_may_name_the_place_it_fills() -> None:
     """Which is a field of the tuple of agents the flow declares, so it is an identifier."""
-    place, profile, model, _, provider = backends.read(
+    place, profile, model, _, provider, _ = backends.read(
         "reviewer=claude@deepseek/claude-opus-5:high"
     )
     assert (place, profile.name, model, provider) == (
@@ -141,7 +141,7 @@ def test_one_spec_is_one_agent_however_many_a_line_names() -> None:
 
 def test_an_agent_may_name_the_account_it_runs_as() -> None:
     """Two agents of one CLI are two accounts when the line says so."""
-    _, profile, model, effort, provider = backends.read(
+    _, profile, model, effort, provider, _ = backends.read(
         "claude@deepseek/claude-opus-5:high"
     )
     assert (profile.name, model, effort, provider) == (
@@ -151,7 +151,7 @@ def test_an_agent_may_name_the_account_it_runs_as() -> None:
         "deepseek",
     )
     # A CLI is never spelled with an `@` in it, so the model keeps whatever it holds.
-    _, profile, model, _, provider = backends.read("kimi@mine/kimi-code/k3:max")
+    _, profile, model, _, provider, _ = backends.read("kimi@mine/kimi-code/k3:max")
     assert (profile.name, model, provider) == ("kimi", "kimi-code/k3", "mine")
     with pytest.raises(ValueError, match="expected an account after @"):
         backends.read("claude@/m:high")
@@ -349,3 +349,15 @@ def test_a_backend_told_where_its_sessions_go_is_answered_nothing(
 
     assert profile.told
     assert profile.kept(tmp_path) == ()
+
+
+def test_a_tier_is_read_off_after_the_effort() -> None:
+    """`+TIER` after the effort: a word, and one of the service tiers there are."""
+    _, profile, model, effort, _, tier = backends.read("codex/gpt-5:high+fast")
+    assert (profile.name, model, effort, tier) == ("codex", "gpt-5", "high", "fast")
+    _, _, model, effort, _, tier = backends.read("codex/gpt-5:auto+fast")
+    assert (model, effort, tier) == ("gpt-5", "", "fast")
+    _, _, _, _, _, tier = backends.read("codex/gpt-5:high")
+    assert tier == ""
+    with pytest.raises(ValueError, match="is not a service tier"):
+        backends.read("codex/gpt-5:high+turbo")

@@ -61,7 +61,7 @@ this directory: the line is the whole setup.
 ### Name an agent for each role
 
 ```
-<role>=<cli>[@<account>]/<model>[:<effort>]
+<role>=<cli>[@<account>]/<model>[:<effort>[+<tier>]]
 ```
 
 - **role** is the name the flow gives the agent: `agent` for [ralph_loop](/flows/ralph-loop),
@@ -77,6 +77,9 @@ this directory: the line is the whole setup.
   follows it, so `mcode/custom_provider:gateway/m` needs no effort; a model whose name ends in
   `:<word>`, as `qwen3:latest`, is written with its effort after it: `qwen3:latest:auto`.
   `auto` asks for none.
+- **+tier** after the effort asks for a faster service tier: `codex/gpt-5:high+fast`, or
+  `codex/gpt-5:auto+fast` with no effort. `claude`, `codex` and `cursor-agent` serve `fast`;
+  any other CLI refuses it before the run starts. Fast turns usually cost more.
 
 The CLI is read up to the first `/` and the effort after the last `:`, so a model with slashes
 in it needs no quoting. Several agents go in one `-a`, comma-separated, or in one `-a` each.

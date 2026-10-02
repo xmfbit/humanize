@@ -68,7 +68,7 @@ want the agents to work in.
 
 **Verify.** The line runs without it.
 
-### `-a 'claude/claude-opus-5:high': expected <role>=<harness>[@<provider>]/<model>[:<effort>]`
+### `-a 'claude/claude-opus-5:high': expected <role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]`
 
 **Symptom.** `hmz exec` prints its usage, then this.
 
@@ -78,7 +78,7 @@ want the agents to work in.
 
 **Verify.** The usage line is gone.
 
-### `-a 'agent=claude:high': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT]`
+### `-a 'agent=claude:high': expected [NAME=]CLI[@PROVIDER]/MODEL[:EFFORT[+TIER]]`
 
 **Symptom.** `hmz exec` prints its usage, then this.
 

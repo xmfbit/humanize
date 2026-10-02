@@ -9,6 +9,7 @@ exactly the capabilities its protocol declares -- each of them read off the tabl
 from __future__ import annotations
 
 import subprocess
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
@@ -387,6 +388,18 @@ def test_an_effort_the_cli_has_no_word_for_is_refused_where_the_agent_is_named()
 ):
     with pytest.raises(HarnessUnrecoverable):
         open_agent(_spec(HarnessKind.CLAUDE, effort="ludicrous"))
+
+
+def test_a_tier_a_line_asked_for_is_what_the_agent_is_built_at() -> None:
+    fast = open_agent(replace(_spec(HarnessKind.CODEX), tier="fast"))
+    assert fast._config.service_tier == "fast"
+    # Asked for nothing, it is built at the default tier it always was.
+    assert open_agent(_spec(HarnessKind.CODEX))._config.service_tier == "default"
+
+
+def test_a_tier_the_cli_has_no_word_for_is_refused_where_the_agent_is_named() -> None:
+    with pytest.raises(HarnessUnrecoverable):
+        open_agent(replace(_spec(HarnessKind.OPENCODE), tier="fast"))
 
 
 def test_a_cli_nobody_added_is_not_installed() -> None:

@@ -392,7 +392,7 @@ def test_auto_and_the_absence_of_a_rung_are_one_value() -> None:
     # what a spec kept in a settings file comes back as -- the layers that keep a run written
     # down may import nothing, so they cannot be asked to know the word.
     for spec in ("claude/m:auto", "claude/m:"):
-        _, _, model, effort, _ = backends.read(spec)
+        _, _, model, effort, _, _ = backends.read(spec)
         assert (model, effort) == ("m", "")
 
 

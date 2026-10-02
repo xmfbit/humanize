@@ -3,7 +3,7 @@
 Four flags, each taking any number of occurrences and each occurrence a comma-separated
 list::
 
-    -a coder=claude/opus:high,reviewer=codex@work/gpt-5:medium
+    -a coder=claude/opus:high,reviewer=codex@work/gpt-5:medium+fast
     -e repo=ssh@gpu-box/home/me/repo -e scratch=local@/tmp/scratch
     -e box=docker@gpubox/srv/x
     -p rounds=3 -p tags=a,b,c
@@ -60,7 +60,7 @@ class SpecError(ValueError):
 
 
 class AgentSpecError(SpecError):
-    """An `-a` that is not `<role>=<harness>[@<provider>]/<model>[:<effort>]`."""
+    """An `-a` that is not `<role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]`."""
 
 
 class EnvSpecError(SpecError):
@@ -91,6 +91,9 @@ class AgentSpec:
       effort: The effort in the CLI's own words, or "" for the CLI's default.
       cli: The name the CLI is known by: the harness's own, or the name one added by hand
         was added under.
+      tier: The service tier its turns are served at, one of
+        :data:`hmz.coganchor.agents.config.SERVICE_TIERS`, or "" where `-a` asked for none --
+        which leaves the CLI at its default tier.
     """
 
     role: str
@@ -99,13 +102,17 @@ class AgentSpec:
     model: str
     effort: str
     cli: str
+    tier: str = ""
 
     def __str__(self) -> str:
         """The spec written back as `-a` takes it."""
         from hmz.coganchor.backends import AUTO
 
         account = f"@{self.provider}" if self.provider else ""
-        return f"{self.role}={self.cli}{account}/{self.model}:{self.effort or AUTO}"
+        tier = f"+{self.tier}" if self.tier else ""
+        return (
+            f"{self.role}={self.cli}{account}/{self.model}:{self.effort or AUTO}{tier}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,10 +189,11 @@ def parse_agents(values: Sequence[str]) -> list[AgentSpec]:
         role, written, _ = said.partition("=")
         if not written or not role.strip():
             raise AgentSpecError(
-                f"-a {said!r}: expected <role>=<harness>[@<provider>]/<model>[:<effort>]"
+                f"-a {said!r}: expected "
+                "<role>=<harness>[@<provider>]/<model>[:<effort>[+<tier>]]"
             )
         try:
-            role, profile, model, effort, provider = backends.read(said)
+            role, profile, model, effort, provider, tier = backends.read(said)
         except ValueError as error:
             raise AgentSpecError(f"-a {said!r}: {error}") from error
         if role in roles:
@@ -194,7 +202,9 @@ def parse_agents(values: Sequence[str]) -> list[AgentSpec]:
         harness = (
             HarnessKind(profile.name) if profile.name in harnesses else HarnessKind.ACP
         )
-        specs.append(AgentSpec(role, harness, provider, model, effort, profile.name))
+        specs.append(
+            AgentSpec(role, harness, provider, model, effort, profile.name, tier)
+        )
     return specs
 
 

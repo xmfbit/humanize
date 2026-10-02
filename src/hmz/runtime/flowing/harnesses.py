@@ -219,6 +219,9 @@ def open_agent(
             model=spec.model,
             effort=spec.effort,
             provider=spec.provider,
+            # Only a tier `-a` asked for: one left unsaid is the config's own default, which
+            # is what every agent was built at before a line could ask for one.
+            **({"service_tier": spec.tier} if spec.tier else {}),
             **identifying(made, spec.cli),
         )
         # Built once and let go, which is where coganchor refuses an effort, a rung or a
