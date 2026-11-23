@@ -972,6 +972,29 @@ def test_a_shaped_turn_sends_a_strict_output_schema(
     assert turned["outputSchema"]["additionalProperties"] is False
 
 
+def test_a_proxy_that_reads_only_text_receives_the_output_shape(
+    spawner: Spawner, server: _Server, tmp_path: Path
+) -> None:
+    def review(proc: Process, thread: str, turn: str) -> None:
+        (request,) = server.called("turn/start")
+        prompt = "\n".join(item["text"] for item in request["input"])
+        result = '{"ok": true, "why": "tested", "inner": {}}'
+        answer = result if '"required"' in prompt else "## Review\nTests passed."
+        _says(_message(answer))(proc, thread, turn)
+
+    server.turns = [review]
+    agent = _agent(model="proxy/reviewer")
+    seen: list[str] = []
+    agent.watch(
+        lambda _, __, event: seen.append(event.text) if event.kind == "begins" else None
+    )
+    assert agent.new(tmp_path)("judge", schema=_Shape) == _Shape(ok=True, why="tested")
+    (request,) = server.called("turn/start")
+    assert request["model"] == "proxy/reviewer"
+    assert json.dumps(request["outputSchema"]) in request["input"][-1]["text"]
+    assert seen == ["judge"]
+
+
 def test_a_word_put_in_mid_turn_steers_the_turn(
     spawner: Spawner, server: _Server, tmp_path: Path
 ) -> None:

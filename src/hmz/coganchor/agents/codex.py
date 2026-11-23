@@ -103,7 +103,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 from hmz.coganchor import prices
 from hmz.coganchor.homes import merged, merger
 
-from .base import AgentBase, SessionBase
+from .base import _IN_SHAPE, AgentBase, SessionBase
 from .config import AgentConfig
 from .event import Event, Failed, Question, Unrecoverable, Usage, say
 from .hooks import EVERYWHERE, SUBAGENTS, Moment, Occasion
@@ -2369,8 +2369,7 @@ class CodexSession(SessionBase):
 
     _agent: CodexAgent  # every turn is run on the app server this agent holds
 
-    #: `outputSchema` is the server's own: a turn started with one is constrained to answer
-    #: in it, so the shape is asked for where the turn is started rather than in the prompt.
+    #: Codex takes its schema on the app server's turn/start request.
     shapes: ClassVar[bool] = True
 
     #: An app server takes a tool server as a `-c` of its own, so a flow's own callbacks
@@ -2770,20 +2769,20 @@ class CodexSession(SessionBase):
         match served.method:
             case "turn/start":
                 text = {"type": "text", "text": served.line}
+                inputs = self._inputs(served.line, text) if served.native else [text]
+                if schema is not None:
+                    shape = strict(schema.model_json_schema())
+                    params["outputSchema"] = shape
+                    # A proxy can forward text while dropping the structured-output field.
+                    instruction = _IN_SHAPE.format(schema=json.dumps(shape)).strip()
+                    inputs.append({"type": "text", "text": instruction})
                 yield from server.turn(
                     params
                     | {
-                        "input": self._inputs(served.line, text)
-                        if served.native
-                        else [text],
+                        "input": inputs,
                         "model": self.model,
                         **_thinking(self.effort),
                     }
-                    | (
-                        {"outputSchema": strict(schema.model_json_schema())}
-                        if schema is not None
-                        else {}
-                    )
                     | turned,
                     self._running,
                 )

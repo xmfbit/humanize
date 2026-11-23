@@ -101,6 +101,8 @@ How an agent receives the schema depends on its harness:
 | enforced by the harness | `claude`, `codex`, `agy`, `grok`, `mcode`, `qwen`, `litellm` |
 | added to the prompt | `cursor-agent`, `opencode`, `mimo`, `kimi`, `pi`, `omp`, `dsh`, `acp` |
 
+Codex sends the schema in both the app-server `outputSchema` field and a text instruction. This lets models behind a proxy see the requested fields even when the proxy forwards only text. If a reviewer returns prose, a flow can catch `OutputSchemaError` and ask the same reviewer session to reformat its previous answer, passing the same `output_schema` again.
+
 `litellm` enforces the schema only for a model it knows accepts one; for any other model it adds the schema to the prompt. Prompt-only harnesses can still answer out of shape, so keep the retry loop.
 
 ## Ask a person for a model
